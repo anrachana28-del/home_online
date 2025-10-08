@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product View</title>
+<style>
+body {
+  margin:0;
+  font-family:Arial,sans-serif;
+ background: linear-gradient(to bottom right, #aeaeae, #b0b0b0);
+}
+
+main {
+  padding:15px;
+  max-width:1100px;
+  margin:auto;
+  background: rgba(255, 255, 255, 0.836);
+  border-radius:10px;
+
+  height: 100vh;        /* កំណត់កម្ពស់ជាច្រើន % នៃអេក្រង់ */
+  overflow-y: auto;    /* បើ content លើស -> scroll */
+}
+
+
+/* Main Product */
+.product-view{display:flex;flex-wrap:wrap;gap:20px;margin-bottom:40px;}
+.product-img{flex:1;min-width:280px;position:relative;}
+.product-img img{width:100%;border-radius:10px;object-fit:cover;}
+.product-info{flex:2;min-width:280px;}
+.product-info h1{margin:0 0 10px;font-size:24px;color:#007bff;}
+.product-info .category,.product-info .type{font-size:14px;color:#555;margin-bottom:5px;}
+.product-info .price{color:#28a745;font-weight:bold;font-size:18px;margin-bottom:5px;}
+.product-info .promo{color:#dc3545;font-size:14px;margin-bottom:10px;}
+.product-info .desc{font-size:14px;color:#333;line-height:1.5;}
+
+/* Labels */
+.new-label {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #dc3545;
+  color: #fff;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 4px;
+  transform-origin: center;
+  animation: wiggle 5s infinite;
+}
+@keyframes wiggle {
+  0%,100%{transform:rotate(0deg);}
+  10%{transform:rotate(10deg);}
+  20%{transform:rotate(-10deg);}
+  30%{transform:rotate(10deg);}
+  40%{transform:rotate(-10deg);}
+  50%{transform:rotate(10deg);}
+  60%{transform:rotate(-10deg);}
+  70%{transform:rotate(10deg);}
+  80%{transform:rotate(-10deg);}
+  90%{transform:rotate(10deg);}
+}
+
+/* Related / Type Products */
+h2{color:#007bff;margin-bottom:10px;}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;}
+select,input{padding:6px;border-radius:5px;border:1px solid #ccc;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;}
+/* Card hover */
+.card{
+  background:#fff;
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
+  position:relative;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+.card:hover{
+  transform: scale(1.05);
+  box-shadow: 0 12px 20px rgba(0,0,0,0.25);
+  background: linear-gradient(135deg, #cce0ff, #d2e2f3);
+}
+.card img{width:100%;height:140px;object-fit:cover;display:block;border-radius:10px 10px 0 0;}
+.card-body{padding:10px;}
+.card-body h3{font-size:16px;margin:0 0 5px;}
+.card-body .price{color:#28a745;font-weight:bold;font-size:14px;}
+.card-body .promo{color:#dc3545;font-size:12px;margin-top:3px;}
+.card-body .desc{font-size:13px;color:#666;line-height:1.3;}
+.pagination{display:flex;justify-content:center;gap:10px;margin-top:15px;}
+.pagination button{padding:6px 12px;border:none;background:#007bff;color:white;border-radius:5px;cursor:pointer;}
+.pagination button:disabled{background:#ccc;cursor:not-allowed;}
+
+/* Hover overlay View */
+.view-overlay {
+  position: absolute;
+  top:0; left:0; width:100%; height:100%;
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  border-radius:10px;
+  transition: opacity 0.4s ease, background 0.4s ease;
+}
+.card:hover .view-overlay { 
+  opacity: 1; 
+  background: rgba(0,0,0,0.6);
+}
+</style>
+</head>
+<body>
+
+
+<main>
+  <div class="product-view" id="productView"></div>
+
+  <h2>Related Products (Same Type)</h2>
+  <div class="filters">
+    <select id="relCategoryFilter"><option value="">All Categories</option></select>
+    <select id="relSort">
+      <option value="">Sort By</option>
+      <option value="low">Price: Low → High</option>
+      <option value="high">Price: High → Low</option>
+      <option value="new">Newest</option>
+    </select>
+    <input type="text" id="relSearch" placeholder="Search product...">
+  </div>
+  <div class="grid" id="relatedGrid"></div>
+  <div class="pagination">
+    <button id="prevRel">Prev</button>
+    <span id="relPageInfo"></span>
+    <button id="nextRel">Next</button>
+  </div>
+
+  <h2>Other Products (Different Type)</h2>
+  <div class="grid" id="typeGrid"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQMzAH4MJMojdHWAiLkYBSjdMJWS3Kccw",
+  authDomain: "prewedding-f511a.firebaseapp.com",
+  projectId: "prewedding-f511a",
+  storageBucket: "prewedding-f511a.appspot.com",
+  messagingSenderId: "1057725115554",
+  appId: "1:1057725115554:web:4e8a48eaf959cbd9a07bfb"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const productView = document.getElementById("productView");
+const relatedGrid = document.getElementById("relatedGrid");
+const typeGrid = document.getElementById("typeGrid");
+const relCategoryFilter = document.getElementById("relCategoryFilter");
+const relSort = document.getElementById("relSort");
+const relSearch = document.getElementById("relSearch");
+const prevRel = document.getElementById("prevRel");
+const nextRel = document.getElementById("nextRel");
+const relPageInfo = document.getElementById("relPageInfo");
+
+let relatedProducts = [];
+let typeProducts = [];
+let categories = {};
+let currentPage = 1;
+const perPage = 6;
+
+const params = new URLSearchParams(window.location.search);
+const productId = params.get("id");
+
+async function loadCategories(){
+  const catCol = collection(db,"categories");
+  const snapshot = await getDocs(catCol);
+  categories = {};
+  relCategoryFilter.innerHTML = `<option value="">All Categories</option>`;
+  snapshot.forEach(docSnap=>{
+    categories[docSnap.id] = docSnap.data().name;
+    const opt = document.createElement("option");
+    opt.value = docSnap.id;
+    opt.textContent = docSnap.data().name;
+    relCategoryFilter.appendChild(opt);
+  });
+}
+
+async function loadProduct(){
+  if(!productId) return;
+  const docRef = doc(db,"products",productId);
+  const docSnap = await getDoc(docRef);
+  if(!docSnap.exists()){ productView.innerHTML="<p>Product not found.</p>"; return; }
+  const product = {id:docSnap.id,...docSnap.data()};
+
+  let categoryName = "Uncategorized";
+  if(product.category){
+    const catRef = doc(db,"categories",product.category);
+    const catSnap = await getDoc(catRef);
+    if(catSnap.exists()) categoryName = catSnap.data().name;
+  }
+
+  productView.innerHTML = `
+    <div class="product-img">
+      <img src="${product.imageUrl||product.imageURL||''}" alt="${product.name||product.caption}">
+      <div class="new-label">NEW</div>
+    </div>
+    <div class="product-info">
+      <h1>${product.name||product.caption||''}</h1>
+      <div class="category">📂 Category: ${categoryName}</div>
+      <div class="type">🔖 Type: ${product.type||'No type'}</div>
+      <div class="price">$${product.price||''}</div>
+      ${product.promotion? `<div class="promo">🔥 ${product.promotion}</div>`:''}
+      ${product.description? `<div class="desc">${product.description}</div>`:''}
+    </div>
+  `;
+
+  if(product.type){
+    const q = query(collection(db,"products"), where("type","==",product.type));
+    const snapshot = await getDocs(q);
+    relatedProducts = [];
+    snapshot.forEach(docSnap=>{
+      const p = {id:docSnap.id,...docSnap.data()};
+      if(p.id !== productId) relatedProducts.push(p);
+    });
+    renderRelated();
+    loadTypeProducts(product.type);
+  }
+}
+
+function renderRelated(){
+  let filtered = relatedProducts.slice();
+  const catFilter = relCategoryFilter.value;
+  if(catFilter) filtered = filtered.filter(p=>p.category===catFilter);
+  const search = relSearch.value.toLowerCase();
+  if(search) filtered = filtered.filter(p=>
+    (p.name||'').toLowerCase().includes(search) ||
+    (p.caption||'').toLowerCase().includes(search)
+  );
+
+  const sort = relSort.value;
+  if(sort==='low') filtered.sort((a,b)=>(a.price||0)-(b.price||0));
+  else if(sort==='high') filtered.sort((a,b)=>(b.price||0)-(a.price||0));
+  else if(sort==='new') filtered.sort((a,b)=>{
+    const dA = a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt || new Date(0));
+    const dB = b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt || new Date(0));
+    return dB - dA;
+  });
+
+  const totalPages = Math.ceil(filtered.length/perPage);
+  if(currentPage>totalPages) currentPage = totalPages||1;
+  const start = (currentPage-1)*perPage;
+  const paginated = filtered.slice(start,start+perPage);
+
+  relatedGrid.innerHTML="";
+  paginated.forEach(p=>{
+    const descText = p.description||'';
+    const shortDesc = descText.length>20 ? descText.slice(0,20)+'...More' : descText;
+    const card = document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
+      <img src="${p.imageUrl||p.imageURL||''}" alt="${p.name||p.caption}">
+      <div class="view-overlay">View</div>
+      <div class="card-body">
+        <h3>${p.name||p.caption||''}</h3>
+        <div class="price">$${p.price||''}</div>
+        ${p.promotion? `<div class="promo">🔥 ${p.promotion}</div>` : ''}
+        ${shortDesc? `<div class="desc">${shortDesc}</div>` : ''}
+      </div>
+    `;
+    card.addEventListener("click",()=>{window.location.href=`view.html?id=${p.id}`;});
+    relatedGrid.appendChild(card);
+  });
+
+  relPageInfo.textContent = `Page ${currentPage} / ${totalPages || 1}`;
+  prevRel.disabled = currentPage===1;
+  nextRel.disabled = currentPage===totalPages||totalPages===0;
+}
+
+async function loadTypeProducts(mainType){
+  const q = query(collection(db,"products"));
+  const snapshot = await getDocs(q);
+  typeProducts=[];
+  snapshot.forEach(docSnap=>{
+    const p={id:docSnap.id,...docSnap.data()};
+    if(p.type && p.type !== mainType) typeProducts.push(p);
+  });
+  renderTypeProducts();
+}
+
+function renderTypeProducts(){
+  typeGrid.innerHTML="";
+  typeProducts.forEach(p=>{
+    const descText = p.description||'';
+    const shortDesc = descText.length>20 ? descText.slice(0,20)+'...More' : descText;
+    const card = document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
+      <img src="${p.imageUrl||p.imageURL||''}" alt="${p.name||p.caption}">
+      <div class="view-overlay">View</div>
+      <div class="card-body">
+        <h3>${p.name||p.caption||''}</h3>
+        <div class="price">$${p.price||''}</div>
+        ${p.promotion? `<div class="promo">🔥 ${p.promotion}</div>` : ''}
+        ${shortDesc? `<div class="desc">${shortDesc}</div>` : ''}
+      </div>
+    `;
+    card.addEventListener("click",()=>{window.location.href=`view.html?id=${p.id}`;});
+    typeGrid.appendChild(card);
+  });
+}
+
+relCategoryFilter.addEventListener("change",()=>{currentPage=1;renderRelated();});
+relSort.addEventListener("change",()=>{currentPage=1;renderRelated();});
+relSearch.addEventListener("input",()=>{currentPage=1;renderRelated();});
+prevRel.addEventListener("click",()=>{if(currentPage>1){currentPage--;renderRelated();}});
+nextRel.addEventListener("click",()=>{currentPage++;renderRelated();});
+
+await loadCategories();
+await loadProduct();
+</script>
+</body>
+</html>
