@@ -1,224 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="km">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shop Home</title>
+<title>Register + OTP + Google Login</title>
 <style>
-body {
-  margin:0;
-  font-family:Arial,Khmer OS Battambang;
-  background: linear-gradient(to bottom right, #daf6f6e4);
-  scroll-behavior: smooth; /* Smooth scroll */
-}
-
-header{
-  background: linear-gradient(to bottom right, #c9bdbd, #0697cca7);
-  color:#5c5c5cee;
-  padding:5px;
-  text-align:center;
-  font-size:16px;
-  font-weight:bold;
-}
-
-main {
-  padding:10px;
-  max-width:1200px;
-  margin: auto;           /* margin-top:0 */
-  background: rgba(255, 255, 255, 0.794);
-  border-radius:0px;       /* 8px ឬ 10px ស្អាតជាង 1px */
-  min-height: 90vh;
-  overflow-y: auto;
-}
-
-
-.search-bar {
-  margin: 15px 0;
-  text-align: center;
-}
-
-.search-bar input {
-  width: 20%;
-  max-width: 200px;
-  padding: 10px 15px;
-  font-size: 12px;
-  border-radius: 25px;
-  border: 1px solid #ccc;
-  outline: none;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.15); /* shadow ដើម្បីទម្លាក់ក្រោម */
-  transition: all 0.25s ease;
-}
-
-/* ពេល hover → shadow ច្បាស់ជាង */
-.search-bar input:hover {
-  box-shadow: 0 5px 10px rgba(0,0,0,0.2);
-}
-
-/* ពេល focus → ធ្វើអោយ border ពណ៌ខៀវ និងទម្លាក់ក្រោមជាង */
-.search-bar input:focus {
-  border-color: #0697cc;
-  box-shadow: 0 6px 12px rgba(0, 151, 204, 0.35);
-}
-
-.filter-bar {
-  text-align: left;         /* ចូលដាក់ left ដើម្បី scroll តាមលំដាប់ */
-  margin: 10px 0 20px;
-  overflow-x: auto;         /* អនុញ្ញាតឲ្យ scroll តាមអក្ស horizontally */
-  white-space: nowrap;      /* បង្ខំឲ្យ button នៅជាជួរ មិនចុះបន្ទាត់ */
-  padding-bottom: 6px;      /* ផ្ដល់ទំហំខ្លះកុំឲ្យ scrollbar បិទ buttons */
-}
-
-.filter-bar::-webkit-scrollbar {
-  height: 6px;              /* scrollbar ទំហំតូចស្អាត */
-}
-.filter-bar::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom right, #c9bdbd, #0697cca7);
-  border-radius: 3px;
-}
-.filter-bar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.filter-bar .type-btn {
-  display: inline-block;
-  padding: 6px 14px;
-  margin: 3px;
-  border-radius: 20px;
-  border: 1px solid #18d7f084;
-  background: linear-gradient(to bottom right, #c9bdbd, #0697cca7);
-  color: #fff8f8;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;      /* កុំឲ្យពាក្យនៅក្នុង button បែកជាច្រើនបន្ទាត់ */
-}
-
-.filter-bar .type-btn.active,
-.filter-bar .type-btn:hover {
-  background: #007bff;
-  color: #fff;
-  transform: scale(1.05);
-}
-
-
-.section {
-  margin: 10px 0 15px;
-  font-size: 12px;
-  color:#7c8384c1;
-  
-
-}
-.section h2 {
-  margin: 10px 0 15px;
-  font-size: 18px;
-  color:#02719dcb;
-  border-left: 5px solid #03a1c9f2;
-  padding-left: 12px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px,1fr));
-  gap:15px;
-}
-
-.card{
-  background:#fff;
-  border-radius:12px;
-  overflow:hidden;
-  cursor:pointer;
-  transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.4s ease;
-  position:relative;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-}
-.card:hover{
-  transform: scale(1.05);
-  box-shadow: 0 12px 20px rgba(120, 117, 117, 0.191);
-  background: linear-gradient(to bottom right, #c9bdbd, #0697cca7);
-}
-
-.img-container {
-  position: relative;
-  overflow: hidden;
-}
-.img-container img {
-  width: 100%;
-  height: 230px;
-  object-fit: cover;
-  transition: transform 0.3s ease, opacity 0.6s ease;
-  opacity:0;
-}
-.img-container img.loaded {
-  opacity:1;
-}
-.img-container:hover img {
-  transform: scale(1.1);
-}
-.img-overlay {
-  position: absolute;
-  top:0; left:0; width:100%; height:100%;
-  background: linear-gradient(to bottom right, #c9bdbd, #0697cca7);
-  color: #fff;
-  display:flex; justify-content:center; align-items:center;
-  font-weight: bold;
-  font-size: 12px;
-  opacity:0;
-  transition: opacity 0.3s ease;
-}
-.img-container:hover .img-overlay { opacity:1; }
-
-.card-body{padding:10px;}
-.card-body h3{font-size:12px;margin:0 0 5px;}
-.price{color:#dd1503bc;font-weight:bold;font-size:12px; }
-.original-price {
-  color: rgba(145, 143, 143, 0.883);
-  text-decoration: line-through;
-  margin-right: 5px;
-}
-
-.more-label{color:#007bff;cursor:pointer;font-size:12px;margin-top:5px;}
-.new-label {
-  position:absolute;top:8px;right:12px;
-  background:#dc3546b3;color:#ffffff;font-size:10px;
-  font-weight:bold;padding:2px 6px;border-radius:4px;
-}
-
-/* Responsive Mobile */
-@media (max-width: 768px){
-  .grid {grid-template-columns: repeat(auto-fill,minmax(140px,1fr));}
-  .img-container img {height:120px;}
-  .search-bar input {width:95%;}
-  .filter-bar .type-btn {padding:5px 12px;font-size:13px;}
-}
+body { font-family:"Khmer OS Battambang", Arial; background:#f4f6f9; margin:0; padding:0; }
+h1{text-align:center; margin-top:20px;}
+button { padding:10px; border:none; border-radius:5px; background:#1976d2; color:white; cursor:pointer; width:100%; margin:5px 0; }
+button:hover { background:#1565c0; }
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+.modal-content { background:white; padding:20px; border-radius:10px; width:90%; max-width:400px; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from {opacity:0; transform: translateY(-50px);} to {opacity:1; transform: translateY(0);} }
+input { width:100%; padding:10px; margin:5px 0; border-radius:5px; border:1px solid #ccc; }
+#userInfo { text-align:center; margin:20px;}
 </style>
 </head>
 <body>
-<header> 
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="🔍 Search products by name...">
-  </div></header>
-<main>
- 
 
-  <div class="filter-bar" id="typeButtonsContainer">
-    <!-- Type buttons generated dynamically -->
+<h1>ចុះឈ្មោះ + OTP SMS + Google Login</h1>
+
+<div style="text-align:center; margin:20px;">
+  <button onclick="openRegister()">ចុះឈ្មោះ</button>
+  <button onclick="googleLogin()">Login ជា Google</button>
+</div>
+
+<div id="userInfo"></div>
+
+<!-- Register Modal -->
+<div id="registerModal" class="modal">
+  <div class="modal-content">
+    <span style="float:right; cursor:pointer;" onclick="closeRegister()">&times;</span>
+    <h2>ចុះឈ្មោះ</h2>
+    <input type="text" id="fullName" placeholder="Full Name">
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <input type="tel" id="phone" placeholder="លេខទូរស័ព្ទ +855...">
+    <div id="recaptcha-container"></div>
+    <button onclick="registerUser()">ចុះឈ្មោះ</button>
   </div>
+</div>
 
-  <div class="section" id="newestSection">
-    <h2>Newest Products</h2>
-    <div class="grid" id="newestGrid"></div>
+<!-- OTP Modal -->
+<div id="otpModal" class="modal">
+  <div class="modal-content">
+    <h2>បញ្ចូល OTP</h2>
+    <input type="text" id="otpInput" placeholder="OTP">
+    <button onclick="verifyOTP()">ផ្ទៀងផ្ទាត់</button>
   </div>
+</div>
 
-  <div class="section" id="typeSection">
-    <h2>Products by Type</h2>
-    <div id="typesContainer"></div>
-  </div>
-</main>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
+<script>
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAQMzAH4MJMojdHWAiLkYBSjdMJWS3Kccw",
   authDomain: "prewedding-f511a.firebaseapp.com",
@@ -227,190 +65,123 @@ const firebaseConfig = {
   messagingSenderId: "1057725115554",
   appId: "1:1057725115554:web:4e8a48eaf959cbd9a07bfb"
 };
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-const newestGrid = document.getElementById("newestGrid");
-const typesContainer = document.getElementById("typesContainer");
-const typeButtonsContainer = document.getElementById("typeButtonsContainer");
-const searchInput = document.getElementById("searchInput");
+// Modal controls
+function openRegister(){ document.getElementById("registerModal").style.display="flex"; }
+function closeRegister(){ document.getElementById("registerModal").style.display="none"; }
+function openOTP(){ document.getElementById("otpModal").style.display="flex"; }
+function closeOTP(){ document.getElementById("otpModal").style.display="none"; }
 
-let products = [];
-let filteredProducts = [];
+// Temp user
+let tempUser = null;
+let confirmationResult = null;
 
-async function loadProducts(){
-  const snapshot = await getDocs(collection(db,"products"));
-  products = [];
-  snapshot.forEach(docSnap=>{
-    products.push({id:docSnap.id,...docSnap.data()});
+// Register user
+function registerUser(){
+  const fullName = document.getElementById("fullName").value.trim();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const phone = document.getElementById("phone").value.trim();
+
+  if(!fullName || !username || !password || !phone){ alert("សូមបំពេញទាំងអស់!"); return; }
+
+  tempUser = { fullName, username, password, phone };
+
+  // Clear previous reCAPTCHA
+  if(window.recaptchaVerifier) window.recaptchaVerifier.clear();
+
+  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+    'size': 'invisible',
+    'callback': (response) => { sendOTP(phone); }
   });
-  filteredProducts = [...products];
-  populateTypeButtons();
-  renderNewest();
-  renderByType();
+
+  sendOTP(phone);
 }
 
-function populateTypeButtons(){
-  const types = [...new Set(products.map(p=>p.type).filter(Boolean))];
-  typeButtonsContainer.innerHTML = '';
+// Send OTP
+function sendOTP(phone){
+  const appVerifier = window.recaptchaVerifier;
+  auth.signInWithPhoneNumber(phone, appVerifier)
+    .then((result) => {
+      confirmationResult = result;
+      openOTP();
+      alert("OTP ត្រូវបានផ្ញើទៅលេខទូរស័ព្ទ!"); // dev only
+    })
+    .catch((error)=>{
+      console.error(error);
+      alert("មានបញ្ហា OTP: " + error.message);
+    });
+}
 
-  const allBtn = document.createElement("div");
-  allBtn.className="type-btn active";
-  allBtn.textContent="All";
-  allBtn.dataset.type="";
-  typeButtonsContainer.appendChild(allBtn);
-  allBtn.addEventListener("click", ()=>{setActiveTypeButton(allBtn); filterProducts("");});
+// Verify OTP
+function verifyOTP(){
+  const otp = document.getElementById("otpInput").value.trim();
+  if(!otp){ alert("សូមបញ្ចូល OTP"); return; }
 
-  types.forEach(t=>{
-    const btn = document.createElement("div");
-    btn.className="type-btn";
-    btn.textContent=t;
-    btn.dataset.type=t;
-    typeButtonsContainer.appendChild(btn);
-    btn.addEventListener("click", ()=>{setActiveTypeButton(btn); filterProducts(t);});
+  confirmationResult.confirm(otp).then((result)=>{
+    const user = result.user;
+    // Save user to Firestore
+    db.collection("users").doc(user.uid).set({
+      fullName: tempUser.fullName,
+      username: tempUser.username,
+      phone: tempUser.phone,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      alert("ចុះឈ្មោះសម្រេច!");
+      closeOTP(); closeRegister();
+      updateUI(user);
+    });
+  }).catch((error)=>{
+    alert("OTP មិនត្រឹមត្រូវ: " + error.message);
   });
 }
 
-function setActiveTypeButton(activeBtn){
-  const buttons = typeButtonsContainer.querySelectorAll(".type-btn");
-  buttons.forEach(b=>b.classList.remove("active"));
-  activeBtn.classList.add("active");
+// Google Login
+function googleLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then((result)=>{
+      const user = result.user;
+      // Save Firestore
+      db.collection("users").doc(user.uid).set({
+        fullName: user.displayName,
+        username: user.email,
+        phone: user.phoneNumber || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true }).then(()=>updateUI(user));
+    })
+    .catch((error)=>alert("Login មិនបាន: "+error.message));
 }
 
-function filterProducts(type){
-  const q = searchInput.value.toLowerCase();
-  filteredProducts = products.filter(p=>{
-    const matchType = !type || p.type===type;
-    const matchSearch = (p.name||"").toLowerCase().includes(q) || (p.description||"").toLowerCase().includes(q);
-    return matchType && matchSearch;
+// Session check & update UI
+function updateUI(user){
+  document.getElementById("userInfo").innerHTML = `
+    <h3>សូមស្វាគមន៍, ${user.displayName || tempUser.fullName}</h3>
+    <p>Username: ${user.email || tempUser.username}</p>
+    <p>Phone: ${user.phoneNumber || tempUser.phone}</p>
+    <button onclick="logout()">Logout</button>
+  `;
+  document.querySelectorAll("button[onclick='openRegister()'], button[onclick='googleLogin()']").forEach(b=>b.style.display='none');
+}
+
+// Logout
+function logout(){
+  auth.signOut().then(()=>{
+    tempUser = null;
+    confirmationResult = null;
+    document.getElementById("userInfo").innerHTML = '';
+    document.querySelectorAll("button[onclick='openRegister()'], button[onclick='googleLogin()']").forEach(b=>b.style.display='inline-block');
   });
-  renderNewest();
-  renderByType();
-
-  if(type){
-    const typeSection = document.getElementById("typeSection");
-    typeSection.scrollIntoView({behavior:"smooth"});
-  }
 }
 
-searchInput.addEventListener("input", ()=>{
-  const activeBtn = typeButtonsContainer.querySelector(".type-btn.active");
-  const selectedType = activeBtn ? activeBtn.dataset.type : "";
-  filterProducts(selectedType);
+// Check session on load
+auth.onAuthStateChanged(user=>{
+  if(user) updateUI(user);
 });
-
-function createCard(p){
-  const card = document.createElement("div");
-  card.className="card";
-
-  const imgContainer = document.createElement("div");
-  imgContainer.className="img-container";
-  const img = document.createElement("img");
-  img.src = p.imageUrl || p.imageURL || "";
-  img.alt = p.name || "";
-  img.onload = ()=> img.classList.add("loaded");
-  imgContainer.appendChild(img);
-
-  const overlay = document.createElement("div");
-  overlay.className="img-overlay";
-  overlay.textContent="មើលបន្ថែម";
-  imgContainer.appendChild(overlay);
-
-  const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt || new Date());
-  if(((new Date())-createdAt)/1000/60 <= 1440){
-    const newLabel = document.createElement("div");
-    newLabel.className="new-label";
-    newLabel.textContent="ថ្មីបំផុត";
-    imgContainer.appendChild(newLabel);
-  }
-
-  const body = document.createElement("div");
-  body.className="card-body";
-  const title = document.createElement("h3");
-  title.textContent=p.name || "";
-  body.appendChild(title);
-  
-  // Price with Discount
-  // Price with Discount
-if(p.price){
-  const priceDiv = document.createElement("div");
-  priceDiv.className="price";
-
-  // calculate final price
-  const discount = p.discount || 0;
-  const finalPrice = (p.price * (1 - discount/100)).toFixed(2);
-
-  if(discount > 0){
-    priceDiv.innerHTML = `<span class="original-price">$${p.price}</span> <strong>$${finalPrice}</strong> (-${discount}%)`;
-  } else {
-    priceDiv.textContent = `$${p.price}`;
-  }
-
-  body.appendChild(priceDiv);
-}
-
-  if(p.description){
-    const short=p.description.length>16 ? p.description.substring(0, 16) : p.description;
-    const desc=document.createElement("div");
-    desc.textContent=short;
-    body.appendChild(desc);
-    if(p.description.length>16){
-      const more=document.createElement("div");
-      more.className="more-label";
-      more.textContent="មើលបន្ថែម...";
-      more.onclick = ()=> window.location.href=`view.html?id=${p.id}`;
-      body.appendChild(more);
-    }
-  }
-  
-
-  card.appendChild(imgContainer);
-  card.appendChild(body);
-
-  card.addEventListener("click", e=>{
-    if(!e.target.classList.contains("more-label")){
-      window.location.href=`view.html?id=${p.id}`;
-    }
-  });
-
-  return card;
-}
-
-// Render newest products
-function renderNewest(){
-  newestGrid.innerHTML="";
-  let sorted=[...filteredProducts].sort((a,b)=>{
-    const dA=a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt||new Date(0));
-    const dB=b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt||new Date(0));
-    return dB-dA;
-  });
-  sorted.slice(0,6).forEach(p=>newestGrid.appendChild(createCard(p)));
-}
-
-// Render products grouped by Type
-function renderByType(){
-  typesContainer.innerHTML="";
-  const groups={};
-  filteredProducts.forEach(p=>{
-    if(!groups[p.type]) groups[p.type]=[];
-    groups[p.type].push(p);
-  });
-  Object.keys(groups).forEach(type=>{
-    const section=document.createElement("div");
-    section.className="section";
-    const h=document.createElement("h3");
-    h.textContent=type;
-    section.appendChild(h);
-    const grid=document.createElement("div");
-    grid.className="grid";
-    groups[type].forEach(p=>grid.appendChild(createCard(p)));
-    section.appendChild(grid);
-    typesContainer.appendChild(section);
-  });
-}
-
-
-await loadProducts();
 </script>
+
 </body>
 </html>
