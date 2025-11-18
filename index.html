@@ -1,58 +1,25 @@
 <!DOCTYPE html>
-<html lang="km">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Register + OTP + Google Login</title>
+<title>Order Lookup</title>
 <style>
-body { font-family:"Khmer OS Battambang", Arial; background:#f4f6f9; margin:0; padding:0; }
-h1{text-align:center; margin-top:20px;}
-button { padding:10px; border:none; border-radius:5px; background:#1976d2; color:white; cursor:pointer; width:100%; margin:5px 0; }
-button:hover { background:#1565c0; }
-.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
-.modal-content { background:white; padding:20px; border-radius:10px; width:90%; max-width:400px; animation: fadeIn 0.3s; }
-@keyframes fadeIn { from {opacity:0; transform: translateY(-50px);} to {opacity:1; transform: translateY(0);} }
-input { width:100%; padding:10px; margin:5px 0; border-radius:5px; border:1px solid #ccc; }
-#userInfo { text-align:center; margin:20px;}
+body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+h3 { text-align: center; margin-bottom: 20px; }
+.order-card { background: #fff; padding: 15px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 700px; margin: 0 auto; }
+.order-card ul { padding-left: 20px; }
+.order-card li { margin-bottom: 4px; }
+#searchResults { max-width: 700px; margin: 0 auto; }
 </style>
 </head>
 <body>
 
-<h1>ចុះឈ្មោះ + OTP SMS + Google Login</h1>
+<h3>Order Details</h3>
+<div id="searchResults">Loading...</div>
 
-<div style="text-align:center; margin:20px;">
-  <button onclick="openRegister()">ចុះឈ្មោះ</button>
-  <button onclick="googleLogin()">Login ជា Google</button>
-</div>
-
-<div id="userInfo"></div>
-
-<!-- Register Modal -->
-<div id="registerModal" class="modal">
-  <div class="modal-content">
-    <span style="float:right; cursor:pointer;" onclick="closeRegister()">&times;</span>
-    <h2>ចុះឈ្មោះ</h2>
-    <input type="text" id="fullName" placeholder="Full Name">
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
-    <input type="tel" id="phone" placeholder="លេខទូរស័ព្ទ +855...">
-    <div id="recaptcha-container"></div>
-    <button onclick="registerUser()">ចុះឈ្មោះ</button>
-  </div>
-</div>
-
-<!-- OTP Modal -->
-<div id="otpModal" class="modal">
-  <div class="modal-content">
-    <h2>បញ្ចូល OTP</h2>
-    <input type="text" id="otpInput" placeholder="OTP">
-    <button onclick="verifyOTP()">ផ្ទៀងផ្ទាត់</button>
-  </div>
-</div>
-
-<!-- Firebase -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
 <script>
@@ -66,121 +33,65 @@ const firebaseConfig = {
   appId: "1:1057725115554:web:4e8a48eaf959cbd9a07bfb"
 };
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Modal controls
-function openRegister(){ document.getElementById("registerModal").style.display="flex"; }
-function closeRegister(){ document.getElementById("registerModal").style.display="none"; }
-function openOTP(){ document.getElementById("otpModal").style.display="flex"; }
-function closeOTP(){ document.getElementById("otpModal").style.display="none"; }
+// Parse query params from URL
+const urlParams = new URLSearchParams(window.location.search);
+const searchCustomerID = urlParams.get('customerID');
+const searchOrderCode = urlParams.get('orderCode');
 
-// Temp user
-let tempUser = null;
-let confirmationResult = null;
+// Fetch and display order
+async function fetchOrder() {
+  const container = document.getElementById('searchResults');
+  if (!searchCustomerID || !searchOrderCode) {
+    container.innerHTML = "<p>Please provide Customer ID and Order Code in URL.</p>";
+    return;
+  }
 
-// Register user
-function registerUser(){
-  const fullName = document.getElementById("fullName").value.trim();
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value;
-  const phone = document.getElementById("phone").value.trim();
+  try {
+    const query = db.collectionGroup('orders')
+      .where('customer.customID', '==', searchCustomerID)
+      .where('orderCode', '==', searchOrderCode);
 
-  if(!fullName || !username || !password || !phone){ alert("សូមបំពេញទាំងអស់!"); return; }
+    const snap = await query.get();
 
-  tempUser = { fullName, username, password, phone };
+    if (snap.empty) {
+      container.innerHTML = "<p>No order found.</p>";
+      return;
+    }
 
-  // Clear previous reCAPTCHA
-  if(window.recaptchaVerifier) window.recaptchaVerifier.clear();
+    // Display all matching orders (usually 1)
+    container.innerHTML = "";
+    snap.forEach(doc => {
+      const order = doc.data();
+      const orderEl = document.createElement('div');
+      orderEl.className = "order-card";
 
-  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-    'size': 'invisible',
-    'callback': (response) => { sendOTP(phone); }
-  });
-
-  sendOTP(phone);
-}
-
-// Send OTP
-function sendOTP(phone){
-  const appVerifier = window.recaptchaVerifier;
-  auth.signInWithPhoneNumber(phone, appVerifier)
-    .then((result) => {
-      confirmationResult = result;
-      openOTP();
-      alert("OTP ត្រូវបានផ្ញើទៅលេខទូរស័ព្ទ!"); // dev only
-    })
-    .catch((error)=>{
-      console.error(error);
-      alert("មានបញ្ហា OTP: " + error.message);
+      orderEl.innerHTML = `
+        <b>Order Code:</b> ${order.orderCode} <br>
+        <b>Customer ID:</b> ${order.customer.customID} <br>
+        <b>Name:</b> ${order.customer.name} <br>
+        <b>Phone:</b> ${order.customer.phone} <br>
+        <b>Address:</b> ${order.customer.address} <br>
+        <b>Email:</b> ${order.customer.email || "N/A"} <br>
+        <b>Total:</b> $${order.total.toFixed(2)} <br>
+        <b>Products:</b>
+        <ul>
+          ${order.products.map(p => `<li>${p.name} x${p.qty} = $${(p.price*p.qty).toFixed(2)}</li>`).join('')}
+        </ul>
+        <small>Created at: ${order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : "N/A"}</small>
+      `;
+      container.appendChild(orderEl);
     });
+
+  } catch(err) {
+    console.error(err);
+    container.innerHTML = "<p>Error fetching order.</p>";
+  }
 }
 
-// Verify OTP
-function verifyOTP(){
-  const otp = document.getElementById("otpInput").value.trim();
-  if(!otp){ alert("សូមបញ្ចូល OTP"); return; }
-
-  confirmationResult.confirm(otp).then((result)=>{
-    const user = result.user;
-    // Save user to Firestore
-    db.collection("users").doc(user.uid).set({
-      fullName: tempUser.fullName,
-      username: tempUser.username,
-      phone: tempUser.phone,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{
-      alert("ចុះឈ្មោះសម្រេច!");
-      closeOTP(); closeRegister();
-      updateUI(user);
-    });
-  }).catch((error)=>{
-    alert("OTP មិនត្រឹមត្រូវ: " + error.message);
-  });
-}
-
-// Google Login
-function googleLogin(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider)
-    .then((result)=>{
-      const user = result.user;
-      // Save Firestore
-      db.collection("users").doc(user.uid).set({
-        fullName: user.displayName,
-        username: user.email,
-        phone: user.phoneNumber || '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge:true }).then(()=>updateUI(user));
-    })
-    .catch((error)=>alert("Login មិនបាន: "+error.message));
-}
-
-// Session check & update UI
-function updateUI(user){
-  document.getElementById("userInfo").innerHTML = `
-    <h3>សូមស្វាគមន៍, ${user.displayName || tempUser.fullName}</h3>
-    <p>Username: ${user.email || tempUser.username}</p>
-    <p>Phone: ${user.phoneNumber || tempUser.phone}</p>
-    <button onclick="logout()">Logout</button>
-  `;
-  document.querySelectorAll("button[onclick='openRegister()'], button[onclick='googleLogin()']").forEach(b=>b.style.display='none');
-}
-
-// Logout
-function logout(){
-  auth.signOut().then(()=>{
-    tempUser = null;
-    confirmationResult = null;
-    document.getElementById("userInfo").innerHTML = '';
-    document.querySelectorAll("button[onclick='openRegister()'], button[onclick='googleLogin()']").forEach(b=>b.style.display='inline-block');
-  });
-}
-
-// Check session on load
-auth.onAuthStateChanged(user=>{
-  if(user) updateUI(user);
-});
+// Run on page load
+window.addEventListener('DOMContentLoaded', fetchOrder);
 </script>
 
 </body>
