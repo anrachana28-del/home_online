@@ -44,6 +44,39 @@
 }
 button{padding:10px 14px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;}
 .small{font-size:12px;color:var(--muted);margin-top:10px;}
+
+#loadingOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 99999;
+  backdrop-filter: blur(3px);
+}
+
+.loader {
+  width: 55px;
+  height: 55px;
+  border: 6px solid #ddd;
+  border-top-color: #0c8aa8;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+.loading-text {
+  font-size: 15px;
+  color: #0c8aa8;
+  font-weight: 600;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 </style>
 </head>
 <body>
@@ -77,6 +110,10 @@ button{padding:10px 14px;border-radius:8px;border:none;cursor:pointer;background
     </div>
     <div id="loginMsg" style="margin-top:8px;font-size:13px;color:#666;"></div>
   </div>
+</div>
+<div id="loadingOverlay">
+  <div class="loader"></div>
+  <div class="loading-text">សូមរង់ចាំ...</div>
 </div>
 
 <!-- Firebase SDKs (unchanged) -->
@@ -115,19 +152,39 @@ const searchCustomerID = urlParams.get('customerID');
 const searchOrderCode   = urlParams.get('orderCode');
 
 // Admin login (compat with existing code)
-async function adminLogin(){
+async function adminLogin() {
   const em = document.getElementById('adminEmail').value.trim();
   const pw = document.getElementById('adminPassword').value.trim();
   const lm = document.getElementById('loginMsg');
-  lm.textContent='';
-  if(!em||!pw){ lm.style.color='red'; lm.textContent='Enter email and password'; return; }
-  try{
-    await auth.signInWithEmailAndPassword(em,pw);
-    lm.style.color='green'; lm.textContent='Login successful';
+  
+  if (!em || !pw) {
+    lm.style.color = 'red';
+    lm.textContent = 'Enter email and password';
+    return;
+  }
+
+  if (!allowedAdminEmails.includes(em)) {
+    lm.style.color = 'red';
+    lm.textContent = 'This email is not allowed';
+    return;
+  }
+
+  try {
+    showLoading();
+    await firebase.auth().signInWithEmailAndPassword(em, pw);
+    lm.style.color = 'green';
+    lm.textContent = 'Login successful';
     closeModal();
     fetchOrder();
-  }catch(e){ lm.style.color='red'; lm.textContent='Login failed: '+e.message; }
+  } catch (e) {
+    lm.style.color = 'red';
+    lm.textContent = 'Login failed: ' + e.message;
+  } finally {
+    hideLoading();
+  }
 }
+
+
 function adminLogout(){ auth.signOut().then(()=>{ document.getElementById('loginMsg').textContent='Logged out'; document.getElementById('searchResults').innerHTML='<div style=\"text-align:center;padding:18px;color:#666;\">Please login</div>'; openModal(); }); }
 
 // Fetch order and render invoice(s) with embedded ABA image
@@ -235,6 +292,13 @@ async function fetchOrder(){
     console.error(err);
     document.getElementById('searchResults').innerHTML = '<div style="text-align:center;padding:18px;color:red;">Error loading order.</div>';
   }
+}
+function showLoading() {
+  document.getElementById("loadingOverlay").style.display = "flex";
+}
+
+function hideLoading() {
+  document.getElementById("loadingOverlay").style.display = "none";
 }
 
 // Print only this invoice card (works reliably)
