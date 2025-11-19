@@ -134,23 +134,35 @@ function adminLogout(){ auth.signOut().then(()=>{ document.getElementById('login
 async function fetchOrder() {
   const container = document.getElementById('searchResults');
   const user = auth.currentUser;
-  if(!user){ container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Please login as admin.</div>'; return; }
-  if(!searchCustomerID || !searchOrderCode){ container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Missing customerID/orderCode in URL.</div>'; return; }
+  if (!user) {
+    container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Please login as admin.</div>';
+    return;
+  }
+  if (!searchCustomerID || !searchOrderCode) {
+    container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Missing customerID/orderCode in URL.</div>';
+    return;
+  }
 
-  try{
+  try {
     const q = db.collectionGroup('orders')
-      .where('customer.customID','==',searchCustomerID)
-      .where('orderCode','==',searchOrderCode);
+      .where('customer.customID', '==', searchCustomerID)
+      .where('orderCode', '==', searchOrderCode);
 
     const snap = await q.get();
-    if(snap.empty){ container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">No order found.</div>'; return; }
+    if (snap.empty) {
+      container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">No order found.</div>';
+      return;
+    }
 
     container.innerHTML = '';
-    snap.forEach(doc=>{
-      const order = doc.data();
-      order.id = doc.id; // បន្ថែម doc.id សម្រាប់ update Firestore
 
-      const productsRows = (order.products||[]).map(p=>`
+    snap.forEach(doc => {
+      const order = doc.data();
+      order.id = doc.id;          // សម្រាប់ update DOM
+      order.docPath = doc.ref.path; // full doc path Firestore
+
+      // Build product rows
+      const productsRows = (order.products || []).map(p => `
         <tr>
           <td>${escapeHtml(p.name)}</td>
           <td style="width:80px;text-align:center">${p.qty}</td>
@@ -160,6 +172,7 @@ async function fetchOrder() {
 
       const embeddedImg = abaImageDataURI;
 
+      // Invoice HTML with status
       const invoiceHTML = `
         <div class="invoice">
           <div class="watermark">MYSHOP</div>
@@ -170,6 +183,10 @@ async function fetchOrder() {
               <div style="color:var(--muted);font-size:13px;margin-top:6px;">
                 Phnom Penh, Cambodia<br>
                 Phone: 012 345 678 · info@myshop.com
+              </div>
+              <!-- STATUS DISPLAY -->
+              <div style="margin-top:6px;font-weight:700;">
+                Status: <span id="status-${order.id}">${order.status || 'Pending'}</span>
               </div>
             </div>
             <div class="meta">
@@ -215,7 +232,7 @@ async function fetchOrder() {
             <div style="font-size:13px;color:var(--muted);">Thank you for your purchase.</div>
             <div>
               <button onclick="printInvoice(this)">Print Invoice</button>
-<button onclick="confirmOrder('${order.docPath}','${order.customer.customID}','${order.orderCode}')" style="margin-left:8px; background:#28a745;">Confirm</button>
+              <button onclick="confirmOrder('${order.docPath}','${order.customer.customID}','${order.orderCode}','${order.id}')" style="margin-left:8px; background:#28a745;">Confirm</button>
             </div>
           </div>
         </div>
@@ -227,26 +244,30 @@ async function fetchOrder() {
       container.appendChild(wrapper);
     });
 
-  }catch(err){
+  } catch(err) {
     console.error(err);
     container.innerHTML = '<div style="text-align:center;padding:18px;color:red;">Error loading order.</div>';
   }
 }
 
-// Function to confirm order
-async function confirmOrder(docPath, customerID, orderCode) {
+// Confirm order function
+async function confirmOrder(docPath, customerID, orderCode, orderId) {
   try {
-    const orderRef = db.doc(docPath); // ប្រើ path ពេញ
+    const orderRef = db.doc(docPath);
     await orderRef.update({ status: "Confirmed" });
 
-    alert(`Order ${orderCode} បាន Confirm! CustomerID: ${customerID}`);
-    fetchOrder(); // Refresh បង្ហាញលទ្ធផល
+    // Update status in the DOM without refresh
+    const statusEl = document.getElementById(`status-${orderId}`);
+    if (statusEl) statusEl.textContent = "Confirmed";
 
+    alert(`Order ${orderCode} បាន Confirm! CustomerID: ${customerID}`);
+    
   } catch(err) {
     console.error(err);
     alert("Failed to confirm order: " + err.message);
   }
 }
+
 
 
 // Print only this invoice card (works reliably)
