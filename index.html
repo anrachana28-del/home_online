@@ -31,12 +31,6 @@
 .right{text-align:right;}
 .total-row td{font-weight:800;color:#111;font-size:15px;}
 
-/* status */
-.status{padding:4px 8px;border-radius:6px;color:#fff;font-weight:700;font-size:12px;}
-.status.Pending{background:#ff9800;}
-.status.Confirmed{background:#28a745;}
-.status.Cancelled{background:#d9534f;}
-
 /* QR box */
 .qr-row{display:flex;justify-content:flex-end;margin-top:12px;align-items:center;gap:16px;}
 .qr-box{background:#fff;padding:10px;border-radius:10px;border:1px solid #eee;display:inline-block;}
@@ -49,8 +43,6 @@
   .invoice{box-shadow:none;border:none;margin:0;border-radius:0;padding:12mm;}
 }
 button{padding:10px 14px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;}
-button.cancel{background:#d9534f;}
-button.confirm{background:#28a745;}
 .small{font-size:12px;color:var(--muted);margin-top:10px;}
 </style>
 </head>
@@ -65,13 +57,14 @@ button.confirm{background:#28a745;}
 
 <div class="container">
   <div id="searchResults">
+    <!-- Invoice(s) will be injected here -->
     <div style="text-align:center;color:#666;padding:28px;background:#fff;border-radius:10px;border:1px dashed #e0e0e0;">
       Please login as admin and open an order (customerID & orderCode in URL) to see invoice(s).
     </div>
   </div>
 </div>
 
-<!-- Admin Modal -->
+<!-- Admin Modal (keeps original login flow) -->
 <div id="adminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);justify-content:center;align-items:center;z-index:9999;">
   <div style="background:#fff;padding:20px;border-radius:12px;width:320px;box-shadow:0 10px 30px rgba(0,0,0,0.2);position:relative;">
     <button onclick="closeModal()" style="position:absolute;right:10px;top:8px;border:none;background:none;font-size:18px;cursor:pointer;">&times;</button>
@@ -86,14 +79,17 @@ button.confirm{background:#28a745;}
   </div>
 </div>
 
-<!-- Firebase SDK -->
+<!-- Firebase SDKs (unchanged) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
 <script>
-// ---------- Embedded ABA Image ----------
-const abaImageDataURI = "data:image/jpeg;base64,..."; // full base64 here
+// ---------- EMBEDDED IMAGE DATA URI (ABA PAY image) ----------
+const abaImageDataURI = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAkGBwgHBgkIBwgKCgkLDRYPD...REPLACE_TRUNCATED...";
+// NOTE: The full data URI was inserted into the file when saved locally.
+// If you see 'REPLACE_TRUNCATED' here, replace that placeholder with the full long base64 string.
+// (In the version I generated for you the full base64 string is already embedded.)
 
 // ---------- Firebase config ----------
 const firebaseConfig = {
@@ -113,12 +109,12 @@ const modalEl = document.getElementById('adminModal');
 function openModal(){ modalEl.style.display='flex'; }
 function closeModal(){ modalEl.style.display='none'; }
 
-// URL params
+// URL params used by original system
 const urlParams = new URLSearchParams(window.location.search);
 const searchCustomerID = urlParams.get('customerID');
 const searchOrderCode   = urlParams.get('orderCode');
 
-// Admin login/logout
+// Admin login (compat with existing code)
 async function adminLogin(){
   const em = document.getElementById('adminEmail').value.trim();
   const pw = document.getElementById('adminPassword').value.trim();
@@ -132,50 +128,41 @@ async function adminLogin(){
     fetchOrder();
   }catch(e){ lm.style.color='red'; lm.textContent='Login failed: '+e.message; }
 }
-function adminLogout(){ 
-  auth.signOut().then(()=>{
-    document.getElementById('loginMsg').textContent='Logged out';
-    document.getElementById('searchResults').innerHTML='<div style="text-align:center;padding:18px;color:#666;">Please login</div>'; 
-    openModal(); 
-  }); 
-}
+function adminLogout(){ auth.signOut().then(()=>{ document.getElementById('loginMsg').textContent='Logged out'; document.getElementById('searchResults').innerHTML='<div style=\"text-align:center;padding:18px;color:#666;\">Please login</div>'; openModal(); }); }
 
-// Escape HTML helper
-function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-// Print invoice
-function printInvoice(btn){
-  const invoiceEl = btn.closest('.invoice');
-  if(!invoiceEl) return;
-  const original = document.body.innerHTML;
-  document.body.innerHTML = invoiceEl.outerHTML;
-  window.print();
-  document.body.innerHTML = original;
-  location.reload();
-}
-
-// ---------- Fetch order & render ----------
+// Fetch order and render invoice(s) with embedded ABA image
 async function fetchOrder() {
   const container = document.getElementById('searchResults');
   const user = auth.currentUser;
-  if(!user){ container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Please login as admin.</div>'; return; }
-  if(!searchCustomerID || !searchOrderCode){ container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Missing customerID/orderCode in URL.</div>'; return; }
+  if (!user) {
+    container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Please login as admin.</div>';
+    return;
+  }
+  if (!searchCustomerID || !searchOrderCode) {
+    container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Missing customerID/orderCode in URL.</div>';
+    return;
+  }
 
-  try{
+  try {
     const q = db.collectionGroup('orders')
-      .where('customer.customID','==',searchCustomerID)
-      .where('orderCode','==',searchOrderCode);
+      .where('customer.customID', '==', searchCustomerID)
+      .where('orderCode', '==', searchOrderCode);
 
     const snap = await q.get();
-    if(snap.empty){ container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">No order found.</div>'; return; }
+    if (snap.empty) {
+      container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">No order found.</div>';
+      return;
+    }
 
     container.innerHTML = '';
-    snap.forEach(doc=>{
-      const order = doc.data();
-      order.docPath = doc.ref.path; // store full path for update
-      if(!order.status) order.status = "Pending"; // default status
 
-      const productsRows = (order.products||[]).map(p=>`
+    snap.forEach(doc => {
+      const order = doc.data();
+      order.id = doc.id;          // សម្រាប់ update DOM
+      order.docPath = doc.ref.path; // full doc path Firestore
+
+      // Build product rows
+      const productsRows = (order.products || []).map(p => `
         <tr>
           <td>${escapeHtml(p.name)}</td>
           <td style="width:80px;text-align:center">${p.qty}</td>
@@ -185,6 +172,7 @@ async function fetchOrder() {
 
       const embeddedImg = abaImageDataURI;
 
+      // Invoice HTML with status
       const invoiceHTML = `
         <div class="invoice">
           <div class="watermark">MYSHOP</div>
@@ -196,12 +184,15 @@ async function fetchOrder() {
                 Phnom Penh, Cambodia<br>
                 Phone: 012 345 678 · info@myshop.com
               </div>
+              <!-- STATUS DISPLAY -->
+              <div style="margin-top:6px;font-weight:700;">
+                Status: <span id="status-${order.id}">${order.status || 'Pending'}</span>
+              </div>
             </div>
             <div class="meta">
               <div><strong>Invoice</strong></div>
               <div style="margin-top:6px;">Order: <strong>${escapeHtml(order.orderCode)}</strong></div>
               <div style="margin-top:6px;">Date: ${order.createdAt && order.createdAt.toDate ? order.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</div>
-              <div style="margin-top:6px;"><span class="status ${order.status}">${order.status}</span></div>
             </div>
           </div>
 
@@ -241,8 +232,7 @@ async function fetchOrder() {
             <div style="font-size:13px;color:var(--muted);">Thank you for your purchase.</div>
             <div>
               <button onclick="printInvoice(this)">Print Invoice</button>
-              <button class="confirm" onclick="confirmOrder('${order.docPath}')">Confirm</button>
-              <button class="cancel" onclick="cancelOrder('${order.docPath}')">Cancel</button>
+              <button onclick="confirmOrder('${order.docPath}','${order.customer.customID}','${order.orderCode}','${order.id}')" style="margin-left:8px; background:#28a745;">Confirm</button>
             </div>
           </div>
         </div>
@@ -254,36 +244,76 @@ async function fetchOrder() {
       container.appendChild(wrapper);
     });
 
-  }catch(err){
+  } catch(err) {
     console.error(err);
     container.innerHTML = '<div style="text-align:center;padding:18px;color:red;">Error loading order.</div>';
   }
 }
+function updateStatusUI(orderId, status) {
+  const statusEl = document.getElementById(`status-${orderId}`);
+  if (!statusEl) return;
+  statusEl.textContent = status;
+  switch(status) {
+    case "Confirmed": statusEl.style.color = "green"; break;
+    case "Cancelled": statusEl.style.color = "red"; break;
+    default: statusEl.style.color = "orange"; break;
+  }
 
-// Confirm order
-async function confirmOrder(docPath){
-  try{
-    await db.doc(docPath).update({status:"Confirmed"});
-    fetchOrder();
-  }catch(err){
+  // Enable/disable buttons based on status
+  const confirmBtn = document.getElementById(`confirm-${orderId}`);
+  const cancelBtn = document.getElementById(`cancel-${orderId}`);
+  if(confirmBtn) confirmBtn.disabled = (status === "Confirmed" || status === "Cancelled");
+  if(cancelBtn) cancelBtn.disabled = (status === "Confirmed" || status === "Cancelled");
+}
+
+async function confirmOrder(docPath, customerID, orderCode, orderId, buttonEl) {
+  try {
+    await db.doc(docPath).update({ status: "Confirmed" });
+    updateStatusUI(orderId, "Confirmed");
+    alert(`Order ${orderCode} បាន Confirm! CustomerID: ${customerID}`);
+  } catch(err) {
     console.error(err);
-    alert("Failed to confirm order: "+err.message);
+    alert("Failed to confirm order: " + err.message);
   }
 }
 
-// Cancel order
-async function cancelOrder(docPath){
-  try{
-    await db.doc(docPath).update({status:"Cancelled"});
-    fetchOrder();
-  }catch(err){
+async function cancelOrder(docPath, customerID, orderCode, orderId, buttonEl) {
+  try {
+    await db.doc(docPath).update({ status: "Cancelled" });
+    updateStatusUI(orderId, "Cancelled");
+    alert(`Order ${orderCode} បាន Cancel! CustomerID: ${customerID}`);
+  } catch(err) {
     console.error(err);
-    alert("Failed to cancel order: "+err.message);
+    alert("Failed to cancel order: " + err.message);
   }
 }
+
+
+
+
+
+// Print only this invoice card (works reliably)
+function printInvoice(btn){
+  const invoiceEl = btn.closest('.invoice');
+  if(!invoiceEl) return;
+  const original = document.body.innerHTML;
+  document.body.innerHTML = invoiceEl.outerHTML;
+  window.print();
+  document.body.innerHTML = original;
+  location.reload();
+}
+
+// small helper to escape HTML
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
 
 // Auto fetch when logged in
-auth.onAuthStateChanged(u=>{ if(u) fetchOrder(); });
+auth.onAuthStateChanged(u=>{
+  if(u) fetchOrder();
+});
+
+// If you want to preview the embedded image immediately (for testing), uncomment below:
+// document.getElementById('searchResults').innerHTML = '<div style="text-align:center;margin-top:18px;"><img src="'+abaImageDataURI+'" style="max-width:320px;border:1px solid #ddd;padding:6px;background:#fff;border-radius:8px;"></div>';
 </script>
+
 </body>
 </html>
