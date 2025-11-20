@@ -120,6 +120,21 @@ button.confirm{background:#28a745;}
     </button>
   </div>
 </div>
+<button id="chatBtn" style="position:fixed;bottom:20px;right:20px;padding:12px 18px;border:none;border-radius:50px;background:#0c8aa8;color:white;font-weight:bold;cursor:pointer;">Chat</button>
+
+<div id="chatModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);justify-content:center;align-items:center;z-index:9999;">
+  <div style="width:320px;max-height:450px;background:#fff;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <div style="background:#0c8aa8;color:white;padding:10px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
+      Support Chat
+      <button onclick="closeChat()" style="background:none;border:none;color:white;font-size:18px;cursor:pointer;">&times;</button>
+    </div>
+    <div id="chatMessages" style="flex:1;padding:10px;overflow-y:auto;font-size:13px;display:flex;flex-direction:column;"></div>
+    <div style="display:flex;border-top:1px solid #ddd;">
+      <input id="chatInput" type="text" placeholder="Type a message..." style="flex:1;padding:8px;border:none;outline:none;font-size:13px;">
+      <button onclick="sendMessage()" style="background:#0c8aa8;color:white;border:none;padding:0 12px;cursor:pointer;">Send</button>
+    </div>
+  </div>
+</div>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -359,6 +374,86 @@ async function cancelOrder(docPath, orderId){
     alert("Failed to cancel order: "+err.message);
   }
 }
+const chatBtn = document.getElementById('chatBtn');
+const chatModal = document.getElementById('chatModal');
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+
+// Get customerID from URL or order
+const customerID = urlParams.get('customerID'); // ប្រើ order customerID
+const orderCode  = urlParams.get('orderCode');
+
+chatBtn.addEventListener('click',()=>{ openChat(); });
+function closeChat(){ chatModal.style.display='none'; }
+
+// Firestore reference
+const chatRef = db.collection('chats').doc(customerID);
+
+// Open chat modal and load messages
+function openChat(){
+  if(!customerID){ alert("Missing customer ID"); return; }
+  chatModal.style.display='flex';
+  chatMessages.innerHTML='';
+  
+  // Listen real-time
+  chatRef.onSnapshot(doc=>{
+    chatMessages.innerHTML='';
+    if(doc.exists){
+      const msgs = doc.data().messages || [];
+      msgs.forEach(m=>{
+        appendMessage(m.text, m.sender);
+      });
+    }
+  });
+}
+
+// Append message in DOM
+function appendMessage(text, sender='user'){
+  const div = document.createElement('div');
+  div.textContent = text;
+  div.style.marginBottom='6px';
+  div.style.padding='6px 10px';
+  div.style.borderRadius='8px';
+  div.style.maxWidth='80%';
+  div.style.wordBreak='break-word';
+  div.style.alignSelf = sender==='user'?'flex-end':'flex-start';
+  div.style.background = sender==='user'?'#0c8aa8':'#f1f1f1';
+  div.style.color = sender==='user'?'white':'#222';
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Send message
+async function sendMessage(){
+  const text = chatInput.value.trim();
+  if(!text) return;
+  chatInput.value='';
+  appendMessage(text,'user');
+  
+  try{
+    await chatRef.set({
+      messages: firebase.firestore.FieldValue.arrayUnion({
+        text, sender:'user', createdAt: firebase.firestore.Timestamp.now()
+      })
+    }, {merge:true});
+    
+    // Optional: admin auto-reply
+    // await chatRef.set({
+    //   messages: firebase.firestore.FieldValue.arrayUnion({
+    //     text:"We received your message!", sender:'admin', createdAt: firebase.firestore.Timestamp.now()
+    //   })
+    // }, {merge:true});
+    
+  }catch(err){
+    console.error(err);
+    alert("Failed to send: "+err.message);
+  }
+}
+
+// Enter key
+chatInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter') sendMessage();
+});
 
 // Auto fetch when logged in
 auth.onAuthStateChanged(u=>{ if(u) fetchOrder(); });
