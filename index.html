@@ -100,6 +100,27 @@ button.confirm{background:#28a745;}
   </div>
 </div>
 
+
+  <!-- Confirm Modal -->
+<div id="confirmModal" style="
+  display:none;
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.6);
+  justify-content:center; align-items:center; z-index:9999;
+">
+  <div style="background:white; padding:20px; width:300px; border-radius:8px; text-align:center;">
+    <div id="modalMessage" style="font-size:16px; margin-bottom:20px;">Are you sure?</div>
+
+    <button id="modalYes" style="background:green;color:white;padding:8px 15px;border:none;border-radius:5px;margin-right:8px;">
+      Yes
+    </button>
+
+    <button onclick="closeModal()" style="background:red;color:white;padding:8px 15px;border:none;border-radius:5px;">
+      Cancel
+    </button>
+  </div>
+</div>
+
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -167,88 +188,94 @@ function printInvoice(btn){
   document.body.innerHTML = original;
   location.reload();
 }
+let modalAction = null;
+
+function showModal(message, action){
+  document.getElementById('modalMessage').textContent = message;
+  modalAction = action;
+  document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeModal(){
+  document.getElementById('confirmModal').style.display = 'none';
+}
+
+document.getElementById('modalYes').onclick = () => {
+  if(modalAction) modalAction();
+  closeModal();
+};
 
 // ---------- Fetch order & render ----------
-// ---------- Fetch order & render ----------
+// ----------- Fetch Order ------------
 async function fetchOrder() {
   const container = document.getElementById('searchResults');
   const user = auth.currentUser;
-
-  if (!user) {
-    container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Please login as admin.</div>';
-    return;
-  }
-  if (!searchCustomerID || !searchOrderCode) {
-    container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">Missing customerID/orderCode in URL.</div>';
+  if(!user){
+    container.innerHTML = "Please login as admin.";
     return;
   }
 
-  try {
+  try{
     const q = db.collectionGroup('orders')
-      .where('customer.customID', '==', searchCustomerID)
-      .where('orderCode', '==', searchOrderCode);
+      .where('customer.customID','==',searchCustomerID)
+      .where('orderCode','==',searchOrderCode);
 
     const snap = await q.get();
-    if (snap.empty) {
-      container.innerHTML = '<div style="text-align:center;padding:18px;color:#666;">No order found.</div>';
+    if(snap.empty){
+      container.innerHTML = "Order not found.";
       return;
     }
 
     container.innerHTML = '';
-    snap.forEach(doc => {
+    snap.forEach(doc=>{
       const order = doc.data();
       order.docPath = doc.ref.path;
+      if(!order.status) order.status = "Pending";
 
-      // Default Status
-      if (!order.status) order.status = "Pending";
-
-      const productsRows = (order.products || []).map(p => `
+      const productsRows = (order.products||[]).map(p=>`
         <tr>
-          <td>${escapeHtml(p.name)}</td>
-          <td style="width:80px;text-align:center">${p.qty}</td>
-          <td style="width:120px;text-align:right">$${Number(p.price).toFixed(2)}</td>
-          <td style="width:120px;text-align:right">$${(Number(p.qty) * Number(p.price)).toFixed(2)}</td>
-        </tr>`).join('');
+          <td>${p.name}</td>
+          <td style="text-align:center;">${p.qty}</td>
+          <td style="text-align:right;">$${Number(p.price).toFixed(2)}</td>
+          <td style="text-align:right;">$${(p.price*p.qty).toFixed(2)}</td>
+        </tr>
+      `).join('');
 
       const invoiceHTML = `
         <div class="invoice">
-          <div class="header">
-            <div class="company">MyShop Cambodia</div>
-            <div class="meta">
-              <div><strong>Invoice</strong></div>
-              <div style="margin-top:6px;">Order: <strong>${escapeHtml(order.orderCode)}</strong></div>
-              <div style="margin-top:6px;">Date: ${order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : new Date().toLocaleString()}</div>
-              <div style="margin-top:6px;">
-                <span id="status-${doc.id}" class="status ${order.status}">${order.status}</span>
-              </div>
-            </div>
-          </div>
+          <h3>Order: ${order.orderCode}</h3>
+          <p><b>Customer:</b> ${order.customer.name}</p>
+          <p><b>Phone:</b> ${order.customer.phone}</p>
 
-          <table class="items">
+          <p>Status:
+            <span id="status-${doc.id}" class="status ${order.status}">
+              ${order.status}
+            </span>
+          </p>
+
+          <hr>
+
+          <table style="width:100%;">
             <thead>
-              <tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+              <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
             </thead>
             <tbody>${productsRows}</tbody>
-            <tfoot>
-              <tr class="total-row">
-                <td colspan="2"></td>
-                <td class="right">Total</td>
-                <td class="right">$${Number(order.total || 0).toFixed(2)}</td>
-              </tr>
-            </tfoot>
           </table>
 
-          <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-size:13px;color:gray;">Thank you for your purchase.</div>
-            <div id="btn-wrap-${doc.id}">
-              <button onclick="printInvoice(this)">Print Invoice</button>
+          <div style="margin-top:20px;text-align:right;">
+            ${order.status === "Pending" ? `
+              <button id="confirm-${doc.id}"
+                onclick="showModal('Confirm this order?', () => confirmOrder('${order.docPath}','${doc.id}'))"
+                style="background:green;color:white;padding:8px 14px;border:none;border-radius:6px;margin-right:10px;">
+                Confirm
+              </button>
 
-              <!-- Buttons only show if Pending -->
-              ${order.status === "Pending" ? `
-                <button id="confirm-${doc.id}" class="confirm" onclick="confirmOrder('${order.docPath}','${doc.id}')">Confirm</button>
-                <button id="cancel-${doc.id}" class="cancel" onclick="cancelOrder('${order.docPath}','${doc.id}')">Cancel</button>
-              ` : ''}
-            </div>
+              <button id="cancel-${doc.id}"
+                onclick="showModal('Cancel this order?', () => cancelOrder('${order.docPath}','${doc.id}'))"
+                style="background:red;color:white;padding:8px 14px;border:none;border-radius:6px;">
+                Cancel
+              </button>
+            ` : ``}
           </div>
         </div>
       `;
@@ -258,46 +285,45 @@ async function fetchOrder() {
       container.appendChild(wrapper);
     });
 
-  } catch (err) {
+  }catch(err){
     console.error(err);
-    container.innerHTML = '<div style="text-align:center;padding:18px;color:red;">Error loading order.</div>';
+    container.innerHTML = "Error loading order";
   }
 }
 
-// -------- Update UI After Status Change --------
-function updateStatus(orderId, status) {
+function updateStatus(orderId, status){
   const statusEl = document.getElementById(`status-${orderId}`);
-  if (statusEl) {
+  if(statusEl){
     statusEl.textContent = status;
     statusEl.className = 'status ' + status;
   }
 
-  // Remove buttons from UI
   const confirmBtn = document.getElementById(`confirm-${orderId}`);
   const cancelBtn = document.getElementById(`cancel-${orderId}`);
-  if (confirmBtn) confirmBtn.remove();
-  if (cancelBtn) cancelBtn.remove();
+
+  if(confirmBtn) confirmBtn.remove();
+  if(cancelBtn) cancelBtn.remove();
 }
 
-// -------- Confirm Order --------
-async function confirmOrder(docPath, orderId) {
-  try {
-    await db.doc(docPath).update({ status: "Confirmed" });
-    updateStatus(orderId, "Confirmed");
-  } catch (err) {
-    alert("Failed to confirm order: " + err.message);
+
+async function confirmOrder(docPath, orderId){
+  try{
+    await db.doc(docPath).update({status:"Confirmed"});
+    updateStatus(orderId,"Confirmed");
+  }catch(err){
+    alert("Failed to confirm: "+err.message);
   }
 }
 
-// -------- Cancel Order --------
-async function cancelOrder(docPath, orderId) {
-  try {
-    await db.doc(docPath).update({ status: "Cancelled" });
-    updateStatus(orderId, "Cancelled");
-  } catch (err) {
-    alert("Failed to cancel order: " + err.message);
+async function cancelOrder(docPath, orderId){
+  try{
+    await db.doc(docPath).update({status:"Cancelled"});
+    updateStatus(orderId,"Cancelled");
+  }catch(err){
+    alert("Failed to cancel: "+err.message);
   }
 }
+
 
 // Helper to update status and remove buttons
 function updateStatus(orderId, status){
