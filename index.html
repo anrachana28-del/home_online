@@ -238,15 +238,24 @@ async function fetchOrder() {
             <div class="qr-box"><img src="image QR.jpg" alt="ABA QR"></div>
           </div>
 
-          <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-size:13px;color:var(--muted);">Thank you for your purchase.</div>
-            <div>
-              <button onclick="printInvoice(this)">Print Invoice</button>
-              <button id="confirm-${doc.id}" class="confirm" onclick="confirmOrder('${order.docPath}','${doc.id}')">Confirm</button>
-              <button id="cancel-${doc.id}" class="cancel" onclick="cancelOrder('${order.docPath}','${doc.id}')">Cancel</button>
-            </div>
-          </div>
-        </div>
+         <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;">
+  <div style="font-size:13px;color:var(--muted);">Thank you for your purchase.</div>
+  <div>
+
+    ${
+      order.status === "Pending"
+      ? `
+          <button onclick="printInvoice(this)">Print Invoice</button>
+          <button class="confirm" onclick="confirmOrder('${order.docPath}')">Confirm</button>
+          <button class="cancel" onclick="cancelOrder('${order.docPath}')">Cancel</button>
+        `
+      : `
+          <button onclick="printInvoice(this)">Print Invoice</button>
+        `
+    }
+
+  </div>
+</div>
       `;
 
       const wrapper = document.createElement('div');
